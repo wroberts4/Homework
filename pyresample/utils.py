@@ -128,15 +128,31 @@ def _parse_yaml_area_file(area_file_name, *regions):
     from xarray import DataArray
     # from pyresample.geometry import DynamicAreaDefinition
 
+    # Reads params and changes them from dicts to lists.
     def get_list_params(var, arg_list, default=None):
+        try:
+            variable = params[var]
+        except KeyError:
+            return default
+        # single number
+        try:
+            return [float(variable), float(variable)]
+        except TypeError:
+            pass
+        except ValueError:
+            raise ValueError('{0} cannot be a string: {1}'.format(var, variable))
+        # list of elements
+        try:
+            if not isinstance(variable, dict):
+                return tuple(variable)
+        except TypeError:
+            pass
         list_of_params = []
         for arg in arg_list:
-            try:
-                list_of_params.append(params[var][arg])
-            except KeyError:
-                return default
-        units = params[var].get('units', False)
-        if units:
+            if variable.get(arg) is not None:
+                list_of_params.append(variable.get(arg))
+        units = variable.get('units')
+        if units is not None:
             list_of_params = DataArray(list_of_params, attrs={'units': units})
         return list_of_params
 
@@ -151,37 +167,40 @@ def _parse_yaml_area_file(area_file_name, *regions):
         except KeyError:
             raise AreaNotFound('Area "{0}" not found in file "{1}"'.format(
                 area_name, area_file_name))
-        description = params['description']
-        projection = params['projection']
+        description = params.pop('description')
+        projection = params.pop('projection')
+        # print(AreaDefinition.from_params(description, projection, **params))
         units = params.get('units', 'meters')
         # lists
-        shape = get_list_params('shape', ['height', 'width'])
-        top_left_extent = get_list_params('top_left_extent', ['x', 'y'])
-        center = get_list_params('center', ['x', 'y'])
-        area_extent = get_list_params('area_extent', ['lower_left_xy', 'upper_right_xy'])
-        # Change to 1D array.
-        if isinstance(area_extent, DataArray):
-            area_extent = DataArray(sum(area_extent.data.tolist(), []), attrs=area_extent.attrs)
-        elif area_extent is not None:
-            area_extent = sum(area_extent, [])
-        pixel_size = get_list_params('pixel_size', ['x', 'y'])
-        radius = get_list_params('radius', ['x', 'y'])
+        shape = get_list_params('shape', ['width', 'height', 'size', 'size'])
+        top_left_extent = get_list_params('top_left_extent', ['x', 'y', 'size', 'size'])
+        center = get_list_params('center', ['x', 'y', 'size', 'size'])
+        area_extent_ll = get_list_params('area_extent', ['lower_left_xy', 'lower_left_x', 'lower_left_y'])
+        area_extent_ur = get_list_params('area_extent', ['upper_right_xy', 'upper_right_x', 'upper_right_y'])
+        # Change area_extent from a 2D array to a 1D array.
+        if area_extent_ll is None or area_extent_ur is None:
+            area_extent = None
+        elif isinstance(area_extent_ll, DataArray):
+            area_extent = DataArray(np.append(area_extent_ll[0], area_extent_ur[0]), attrs=area_extent_ll.attrs)
+        else:
+            area_extent = area_extent_ll[0] + area_extent_ur[0]
+        pixel_size = get_list_params('pixel_size', ['x', 'y', 'size', 'size'])
+        radius = get_list_params('radius', ['x', 'y', 'size', 'size'])
         # kwargs
-        proj_id = params.get('proj_id', None)
+        proj_id = params.get('proj_id')
         area_id = params.get('area_id', area_name)
         optimize_projection = params.get('optimize_projection', False)
         rotation = params.get('rotation', 0)
-        lons = params.get('lons', None)
-        lats = params.get('lats', None)
+        lons = params.get('lons')
+        lats = params.get('lats')
         nprocs = params.get('nprocs', 1)
         dtype = params.get('dtype', np.float64)
 
-        area = AreaDefinition.from_params(description, projection, shape=shape,
-                                          top_left_extent=top_left_extent, center=center,
-                                          area_extent=area_extent, pixel_size=pixel_size, units=units, radius=radius,
-                                          proj_id=proj_id, area_id=area_id, optimize_projection=optimize_projection,
-                                          rotation=rotation, lons=lons, lats=lats,
-                                          nprocs=nprocs, dtype=dtype)
+        area = AreaDefinition.from_params(description, projection, shape=shape, top_left_extent=top_left_extent,
+                                          center=center, area_extent=area_extent, pixel_size=pixel_size,
+                                          radius=radius, units=units, proj_id=proj_id, area_id=area_id,
+                                          optimize_projection=optimize_projection, rotation=rotation, lons=lons,
+                                          lats=lats, nprocs=nprocs, dtype=dtype)
         res.append(area)
     return res
 

@@ -10,20 +10,20 @@ test_meters:
     proj: laea
     lat_0: -90
   area_extent:
-    lower_left_xy: [-5326849.0625, -5326849.0625]
-    upper_right_xy: [5326849.0625, 5326849.0625]
+#    lower_left_xy: [-5326849.0625, -5326849.0625]
+#    upper_right_xy: [5326849.0625, 5326849.0625]
+    lower_left_x: -5326849.0625
+    lower_left_y: -5326849.0625
+    upper_right_x: 5326849.0625
+    upper_right_y: 5326849.0625
     units: m
-  shape:
-    width: 425
-    height: 850
-    units: m
+  shape: [850, 425]
   top_left_extent:
     x: -5326849.0625
     y: 5326849.0625
     units: m
   center:
-    x: 0
-    y: 0
+    size: 0
     units: m
   pixel_size:
     x: 12533.7625

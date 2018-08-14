@@ -874,7 +874,7 @@ class AreaDefinition(BaseDefinition):
 
     @classmethod
     def from_params(cls, name, proj4, shape=None, top_left_extent=None, center=None, area_extent=None, pixel_size=None,
-                    units='meters', radius=None, **kwargs):
+                    radius=None, units='meters', **kwargs):
         """Takes data the user knows and tries to make an area definition from what can be found."""
         from pyproj import Proj
 
@@ -906,7 +906,7 @@ class AreaDefinition(BaseDefinition):
         except TypeError:
             raise ValueError('area_extent must be a 4 element list')
 
-        # Make sure list-like objects are list-like, have the right shape, and are numbers
+        # Make sure list-like objects are list-like, have the right shape, and are numbers.
         center, radius, top_left_extent, area_extent_ll, area_extent_ur, pixel_size, shape = [cls._verify_list(var) for
                                                                                               var in [center, radius,
                                                                                                       top_left_extent,
@@ -936,7 +936,7 @@ class AreaDefinition(BaseDefinition):
         x_size = None
         y_size = None
         if shape is not None:
-            # Make sure shape is an integer
+            # Make sure shape is an integer.
             if not np.allclose(round(shape[0]), shape[0]) or not np.allclose(round(shape[1]), shape[1]):
                 raise ValueError('Shape found or provided must be an integer: {0}'.format(shape))
             x_size = int(round(shape[1]))
@@ -983,10 +983,10 @@ class AreaDefinition(BaseDefinition):
         """Converts units from lon/lat to projection coordinates. The inverse does the opposite."""
         if var is None:
             return None
-        if hasattr(var, 'units'):
-            units = var.units
         if isinstance(var, DataArray):
-            var = var.data.tolist()
+            if hasattr(var, 'units'):
+                units = var.units
+            var = tuple(var.data.tolist())
         if not (units and ('deg' in units or 'rad' in units or 'm' in units)):
             raise ValueError('Units must be in degrees, radians, or meters. Given units were: {}'.format(units))
         # Return either degrees or meters depending on if the inverse is true or not.
@@ -1052,25 +1052,17 @@ class AreaDefinition(BaseDefinition):
         """ Checks that every piece of data that should be list-like (converts lists/tuples to xarrays) is list-like,
             makes sure shapes are accurate, and checks to make sure the values are numbers."""
         # Make list-like data into tuples (or leave as xarrays). If not list-like, throw a ValueError unless it is None.
+
         if var is None:
             return None
+        # Verify that list is made of numbers and list-like.
         try:
-            # Change xarrays without 'units' attribute to tuples: saves time and complexity.
-            if isinstance(var, DataArray) and not hasattr(var, 'units'):
-                var = var.data.tolist()
-            # Confirm variable is list-like and all values are numbers.
-            if isinstance(var, DataArray):
-                var = DataArray([np.float64(num) for num in var.data.tolist()], attrs=var.attrs)
-                # Make sure xarray is 1D
-                for val in var.data.tolist():
-                    if not isinstance(val, float):
-                        raise ValueError('List is not 1-dimensional')
+            if hasattr(var, 'units'):
+                var = DataArray([float(num) for num in var.data.tolist()], attrs=var.attrs)
+            elif isinstance(var, DataArray):
+                var = tuple(float(num) for num in var.data.tolist())
             else:
-                var = tuple(np.float64(num) for num in var)
-                # Make sure tuple is 1D
-                for val in var:
-                    if not isinstance(val, float):
-                        raise ValueError('List is not 1-dimensional')
+                var = tuple(float(num) for num in var)
         except TypeError:
             raise ValueError('List is not list-like:\n{0}'.format(var))
         except ValueError:
@@ -1078,6 +1070,7 @@ class AreaDefinition(BaseDefinition):
         # Confirm correct shape
         if len(var) != 2:
             raise ValueError('List should have length 2, but instead has length {0}:\n{1}'.format(len(var), var))
+        # Make lists with 'units' back into xarrays.
         return var
 
     def __hash__(self):
