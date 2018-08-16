@@ -45,7 +45,7 @@ Creating an area definition:
  >>> area_id = 'ease_sh'
  >>> description = 'Antarctic EASE grid'
  >>> proj_id = 'ease_sh'
-  >>> x_size = 425
+ >>> x_size = 425
  >>> y_size = 425
  >>> area_extent = (-5326849.0625,-5326849.0625,5326849.0625,5326849.0625)
  >>> proj_dict = {'a': '6371228.0', 'units': 'm', 'lon_0': '0',

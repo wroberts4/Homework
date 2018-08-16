@@ -1277,6 +1277,7 @@ class TestStackedAreaDefinition(unittest.TestCase):
         from xarray import DataArray
         from pyresample.geometry import AreaDefinition
         from pyresample.geometry import DynamicAreaDefinition
+        from pyresample import utils
 
         def verify_area(area_def, area_extent=(-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625),
                         shape=(425, 850)):
@@ -1298,7 +1299,7 @@ class TestStackedAreaDefinition(unittest.TestCase):
         radius = [5326849.0625, 5326849.0625]
         units_list = ['meters', 'degrees', 'radians']
         # reducing the length of AreaDefinition.from_params makes lines much shorter.
-        area = AreaDefinition.from_params
+        area = utils.from_params
 
         # Tests: that incorrect lists do not create an area definition, that both proj4 strings and dicts are accepted,
         # and that degrees, meters, and radians all create the same area definition.
