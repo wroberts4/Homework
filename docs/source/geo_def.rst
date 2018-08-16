@@ -6,9 +6,11 @@ of remote sensing data geometries. The use of the different classes is described
 Remarks
 -------
 
+# from_params can take radians.
 All longitudes and latitudes provided to **pyresample.geometry** must be in degrees.
 Longitudes must additionally be in the [-180;+180[ validity range.
 
+# data outside of range does not clip.
 As of version 1.1.1, the **pyresample.geometry** contructors will check the range of
 longitude values, send a warning if some of them fall outside validity range,
 and automatically correct the invalid values into [-180;+180[.
@@ -63,6 +65,7 @@ Creating an area definition:
 
 pyresample.utils
 ****************
+# list of proj4 arguments?
 The utils module of pyresample has convenience functions for constructing
 area defintions. The function **get_area_def** can construct an area definition
 based on area extent and a proj4-string or a list of proj4 arguments.
@@ -88,7 +91,7 @@ based on area extent and a proj4-string or a list of proj4 arguments.
  Number of rows: 425
  Area extent: (-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625)
 
-
+# Update format.
 The **load_area** function can be used to parse area definitions from a
 configuration file. Assuming the file **areas.yaml** exists with the following
 content
