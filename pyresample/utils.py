@@ -114,6 +114,7 @@ def _read_yaml_area_file_content(area_file_name):
     return area_dict
 
 
+# TODO: fix variable names.
 def _parse_yaml_area_file(area_file_name, *regions):
     """Parse area information from a yaml area file.
 
@@ -125,26 +126,21 @@ def _parse_yaml_area_file(area_file_name, *regions):
     the files, using the first file as the "base", replacing things after
     that.
     """
-
     area_dict = _read_yaml_area_file_content(area_file_name)
     area_list = regions or area_dict.keys()
-
     res = []
-
     for area_name in area_list:
         try:
             params = area_dict[area_name]
         except KeyError:
             raise AreaNotFound('Area "{0}" not found in file "{1}"'.format(
                 area_name, area_file_name))
-        description = params.pop('description')
-        projection = params.pop('projection')
+        description = params.pop('description', None)
+        projection = params.pop('projection', None)
         params['shape'] = _get_list_params(params, 'shape', ['width', 'height', 'size'])
         params['top_left_extent'] = _get_list_params(params, 'top_left_extent', ['x', 'y', 'size'])
         params['center'] = _get_list_params(params, 'center', ['x', 'y', 'size'])
-        params['area_extent'] = _get_list_params(params, 'area_extent', ['extents', 'lower_left_xy', 'upper_right_xy',
-                                                                'lower_left_x', 'lower_left_y', 'upper_right_x',
-                                                                'upper_right_y'])
+        params['area_extent'] = _get_list_params(params, 'area_extent', ['extents', 'lower_left_xy', 'upper_right_xy'])
         params['pixel_size'] = _get_list_params(params, 'pixel_size', ['x', 'y', 'size'])
         params['radius'] =  _get_list_params(params, 'radius', ['x', 'y', 'size'])
         area = from_params(description, projection, **params)
@@ -168,7 +164,7 @@ def _get_list_params(params, var, arg_list, default=None):
     # Non-dicts (lists will work).
     if not isinstance(variable, dict):
         return variable
-    # Iterate through arguments.
+    # Iterate through dict.
     for arg in arg_list:
         try:
             values = np.ravel(variable[arg])
@@ -575,7 +571,7 @@ def recursive_dict_update(d, u):
 
 
 def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area_extent=None, pixel_size=None,
-                radius=None, units='meters', **kwargs):
+                radius=None, units=None, **kwargs):
     """Takes data the user knows and tries to make an area definition from what can be found."""
     from pyproj import Proj
     from pyresample.geometry import AreaDefinition
@@ -583,7 +579,10 @@ def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area
 
     area_id = kwargs.pop('area_id', name)
     proj_id = kwargs.pop('proj_id', name)
-    optimize_projection = kwargs.pop('optimize_projection', False)
+
+    for key, value in {'name': name, 'area_id': area_id, 'proj_id': proj_id}.items():
+        if not isinstance(value, str):
+            raise ValueError('{0} must be a string but is: {1}'.format(key, value))
 
     # Get a proj4_dict from either a proj4_dict or a proj4_string.
     if isinstance(proj4, str):
@@ -594,6 +593,9 @@ def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area
         raise ValueError(
             '"proj4" must be a proj4 dict or a proj4 string. Type entered: {}'.format(proj4.__class__))
     p = Proj(proj_dict)
+
+    if units is None:
+        units = proj_dict.get('units', 'meters')
 
     # Make sure list-like objects are list-like, have the right shape, and are numbers.
     center, radius, top_left_extent, area_extent, pixel_size, shape = [_verify_list(name, var, length) for
@@ -650,7 +652,7 @@ def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area
     elif area_extent is not None or shape is not None:
         return DynamicAreaDefinition(area_id=area_id, description=name, proj_dict=proj_dict, x_size=x_size,
                                      y_size=y_size, area_extent=area_extent, rotation=kwargs.get('rotation', None),
-                                     optimize_projection=optimize_projection)
+                                     optimize_projection=kwargs.pop('optimize_projection', False))
     raise ValueError('Not enough information provided to create an area definition')
 
 

@@ -1,8 +1,8 @@
 test_meters:
   description: test_meters
-  area_id: 'ease_sh'
-  proj_id: 'ease_sh'
-  units: 'meters'
+  area_id: ease_sh
+  proj_id: ease_sh
+  units: meters
   projection:
     a: 6371228.0
     units: m
@@ -13,10 +13,6 @@ test_meters:
 #    extents: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
     lower_left_xy: -5326849.0625
     upper_right_xy: 5326849.0625
-#    lower_left_x: -5326849.0625
-#    lower_left_y: -5326849.0625
-#    upper_right_x: 5326849.0625
-#    upper_right_y: 5326849.0625
     units: m
   shape:
     width: 425
