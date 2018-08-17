@@ -17,7 +17,7 @@ test_meters:
 #    lower_left_y: -5326849.0625
 #    upper_right_x: 5326849.0625
 #    upper_right_y: 5326849.0625
-#    units: m
+    units: m
   shape:
     width: 425
     height: 850
@@ -30,8 +30,9 @@ test_meters:
     units: m
   pixel_size: [12533.7625, 25067.525]
   radius:
-    x: 5326849.0625
-    y: 5326849.0625
+#    x: 5326849.0625
+#    y: 5326849.0625
+    size: 5326849.0625
     units: m
 
 test_radians:

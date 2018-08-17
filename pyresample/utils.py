@@ -139,81 +139,49 @@ def _parse_yaml_area_file(area_file_name, *regions):
                 area_name, area_file_name))
         description = params.pop('description')
         projection = params.pop('projection')
-        params['shape'] = _get_list_params(params, 'shape', ['width', 'height', 'size', 'size'])
-        params['top_left_extent'] = _get_list_params(params, 'top_left_extent', ['x', 'y', 'size', 'size'])
-        params['center'] = _get_list_params(params, 'center', ['x', 'y', 'size', 'size'])
+        params['shape'] = _get_list_params(params, 'shape', ['width', 'height', 'size'])
+        params['top_left_extent'] = _get_list_params(params, 'top_left_extent', ['x', 'y', 'size'])
+        params['center'] = _get_list_params(params, 'center', ['x', 'y', 'size'])
         params['area_extent'] = _get_list_params(params, 'area_extent', ['extents', 'lower_left_xy', 'upper_right_xy',
                                                                 'lower_left_x', 'lower_left_y', 'upper_right_x',
                                                                 'upper_right_y'])
-        params['pixel_size'] = _get_list_params(params, 'pixel_size', ['x', 'y', 'size', 'size'])
-        params['radius'] =  _get_list_params(params, 'radius', ['x', 'y', 'size', 'size'])
+        params['pixel_size'] = _get_list_params(params, 'pixel_size', ['x', 'y', 'size'])
+        params['radius'] =  _get_list_params(params, 'radius', ['x', 'y', 'size'])
         area = from_params(description, projection, **params)
         res.append(area)
     return res
 
 
-# TODO: Find a more optimal way to do this
-# Reads a param variable and changes it from a dict to list.
+# Reads a param variable and changes it to a list-like.
 def _get_list_params(params, var, arg_list, default=None):
     # Check if variable is in yaml.
+    list_of_params = []
     try:
         variable = params[var]
     except KeyError:
         return default
-    # single number format.
-    if var == 'area_extent':
+    # Single number format.
+    if isinstance(variable, int) or isinstance(variable, float):
+        if var == 'area_extent':
+            return (variable,)
+        return variable, variable
+    # Non-dicts (lists will work).
+    if not isinstance(variable, dict):
+        return variable
+    # Iterate through arguments.
+    for arg in arg_list:
         try:
-            return (float(variable),)
-        except TypeError:
+            values = np.ravel(variable[arg])
+            list_of_params.extend(values)
+            if arg in ['lower_left_xy', 'upper_right_xy', 'size'] and len(values) == 1:
+                list_of_params.extend(values)
+        except (TypeError, AttributeError, ValueError, KeyError):
             pass
-        except ValueError:
-            pass
-    else:
-        try:
-            return tuple(float(variable), float(variable))
-        except TypeError:
-            pass
-        except ValueError:
-            pass
-    test = []
-    try:
-        for arg in arg_list:
-            try:
-                # Float tests if it's a arg that takes numbers. gets rid of Nones
-                test = np.concatenate([test, [float(x) for x in np.ravel(variable.get(arg))]])
-                if arg in ['lower_left_xy', 'upper_right_xy'] and np.shape(variable.get(arg)) == ():
-                    test = np.concatenate([test, [float(x) for x in np.ravel(variable.get(arg))]])
-                print(var, arg, test)
-            except (TypeError, AttributeError, ValueError):
-                pass
-    except TypeError:
-        pass
-    print('---------')
-    return test
-    # list of elements format.
-    # try:
-    #     if not isinstance(variable, dict):
-    #         return tuple(variable)
-    # except TypeError:
-    #     pass
-    # # Read data split amongst multiple keys/values
-    # list_of_params = []
-    # for arg in arg_list:
-    #     # Add data that is already in a list, that should be in a list.
-    #     if np.shape(variable.get(arg)) and (np.shape(variable.get(arg)) == (2,) and (arg == 'size' or
-    #                                                                                  arg == 'lower_left_xy' or
-    #                                                                                  arg == 'upper_right_xy')
-    #                                         or (np.shape(variable.get(arg)) == (4,) and arg == 'extents')):
-    #         list_of_params = list_of_params + variable.get(arg)
-    #     # Add data that should not be in a list.
-    #     elif variable.get(arg) is not None:
-    #         list_of_params.append(variable.get(arg))
-    #         if arg == 'size' or arg == 'lower_left_xy' or arg == 'upper_right_xy':
-    #             list_of_params.append(variable.get(arg))
-    # units = variable.get('units')
-    # if units is not None:
-    #     return DataArray(list_of_params, attrs={'units': units})
-    # return tuple(list_of_params)
+    # If units are present, convert to xarray.
+    units = variable.get('units')
+    if units is not None:
+        return DataArray(list_of_params, attrs={'units': units})
+    return tuple(list_of_params)
 
 
 def _read_legacy_area_file_lines(area_file_name):
