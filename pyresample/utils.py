@@ -114,7 +114,6 @@ def _read_yaml_area_file_content(area_file_name):
     return area_dict
 
 
-# TODO: fix variable names.
 def _parse_yaml_area_file(area_file_name, *regions):
     """Parse area information from a yaml area file.
 
@@ -137,21 +136,20 @@ def _parse_yaml_area_file(area_file_name, *regions):
                 area_name, area_file_name))
         description = params.pop('description', None)
         projection = params.pop('projection', None)
-        params['shape'] = _get_list_params(params, 'shape', ['width', 'height', 'size'])
-        params['top_left_extent'] = _get_list_params(params, 'top_left_extent', ['x', 'y', 'size'])
-        params['center'] = _get_list_params(params, 'center', ['x', 'y', 'size'])
-        params['area_extent'] = _get_list_params(params, 'area_extent', ['extents', 'lower_left_xy', 'upper_right_xy'])
-        params['pixel_size'] = _get_list_params(params, 'pixel_size', ['x', 'y', 'size'])
-        params['radius'] =  _get_list_params(params, 'radius', ['x', 'y', 'size'])
-        area = from_params(description, projection, **params)
-        res.append(area)
+        params['shape'] = _get_list(params, 'shape', ['width', 'height', 'size'])
+        params['top_left_extent'] = _get_list(params, 'top_left_extent', ['x', 'y', 'size'])
+        params['center'] = _get_list(params, 'center', ['x', 'y', 'size'])
+        params['area_extent'] = _get_list(params, 'area_extent', ['lower_left_xy', 'upper_right_xy', 'extents'])
+        params['pixel_size'] = _get_list(params, 'pixel_size', ['x', 'y', 'size'])
+        params['radius'] =  _get_list(params, 'radius', ['x', 'y', 'size'])
+        res.append(from_params(description, projection, **params))
     return res
 
 
 # Reads a param variable and changes it to a list-like.
-def _get_list_params(params, var, arg_list, default=None):
+def _get_list(params, var, arg_list, default=None):
     # Check if variable is in yaml.
-    list_of_params = []
+    list_of_values = []
     try:
         variable = params[var]
     except KeyError:
@@ -168,16 +166,16 @@ def _get_list_params(params, var, arg_list, default=None):
     for arg in arg_list:
         try:
             values = np.ravel(variable[arg])
-            list_of_params.extend(values)
+            list_of_values.extend(values)
             if arg in ['lower_left_xy', 'upper_right_xy', 'size'] and len(values) == 1:
-                list_of_params.extend(values)
+                list_of_values.extend(values)
         except (TypeError, AttributeError, ValueError, KeyError):
             pass
     # If units are present, convert to xarray.
     units = variable.get('units')
     if units is not None:
-        return DataArray(list_of_params, attrs={'units': units})
-    return tuple(list_of_params)
+        return DataArray(list_of_values, attrs={'units': units})
+    return tuple(list_of_values)
 
 
 def _read_legacy_area_file_lines(area_file_name):
