@@ -167,6 +167,7 @@ def _get_list(params, var, arg_list, default=None):
         try:
             values = np.ravel(variable[arg])
             list_of_values.extend(values)
+            # Single number format.
             if arg in ['lower_left_xy', 'upper_right_xy', 'size'] and len(values) == 1:
                 list_of_values.extend(values)
         except (TypeError, AttributeError, ValueError, KeyError):
@@ -571,43 +572,76 @@ def recursive_dict_update(d, u):
 def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area_extent=None, pixel_size=None,
                 radius=None, units=None, **kwargs):
     """Takes data the user knows and tries to make an area definition from what can be found."""
-    from pyproj import Proj
     from pyresample.geometry import AreaDefinition
     from pyresample.geometry import DynamicAreaDefinition
 
-    area_id = kwargs.pop('area_id', name)
-    proj_id = kwargs.pop('proj_id', name)
+    area_id, proj_id = kwargs.pop('area_id', name), kwargs.pop('proj_id', name)
 
     for key, value in {'name': name, 'area_id': area_id, 'proj_id': proj_id}.items():
         if not isinstance(value, str):
             raise ValueError('{0} must be a string but is: {1}'.format(key, value))
 
     # Get a proj4_dict from either a proj4_dict or a proj4_string.
+    proj_dict, p = _get_proj_data(proj4)
+
+    # If no units are provided, try to get units used in proj_dict. If still none are provided, use meters.
+    if units is None:
+        units = proj_dict.get('units', 'meters')
+
+    # Makes sure list-like objects are list-like, have the right shape, and contain only numbers.
+    center, radius, top_left_extent, pixel_size, area_extent, shape =\
+        [_verify_list(name, var, length) for name, var, length in zip(*[['center', 'radius', 'top_left_extent',
+                                                                         'pixel_size', 'area_extent', 'shape'],
+                                                                        [center, radius, top_left_extent,
+                                                                         pixel_size, area_extent, shape],
+                                                                        [2, 2, 2, 2, 4, 2]])]
+
+    # Converts from lat/lon to projection coordinates (x,y) if not in projection coordinates. Returns tuples.
+    center, radius, top_left_extent, pixel_size, area_extent = _get_units(center, radius, top_left_extent, pixel_size,
+                                                                          area_extent, units, p)
+
+    # Fills in missing information to attempt to create an area definition.
+    if None in (area_extent, shape):
+        area_extent, shape = _extrapolate_information(area_extent, shape, center, radius, pixel_size, top_left_extent)
+
+    return _make_area(area_id, name, proj_id, proj_dict, shape, area_extent, **kwargs)
+
+
+def _make_area(area_id, name, proj_id, proj_dict, shape, area_extent, **kwargs):
+    from pyresample.geometry import AreaDefinition
+    from pyresample.geometry import DynamicAreaDefinition
+
+    # Used for area definition to prevent indexing None.
+    x_size, y_size = None, None
+    if shape is not None:
+        x_size, y_size = int(round(shape[1])), int(round(shape[0]))
+        # Make sure shape is an integer.
+        if not np.allclose(x_size, shape[1]) or not np.allclose(y_size, shape[0]):
+            raise ValueError('Shape found or provided must be an integer: {0}'.format(shape))
+    # If enough data is provided, create an area_definition. If only shape or area_extent are found, make a
+    # DynamicAreaDefinition. If not enough information was provided, raise a ValueError.
+    if None not in (area_extent, shape):
+        return AreaDefinition(area_id, name, proj_id, proj_dict, x_size, y_size, area_extent, **kwargs)
+    elif area_extent is not None or shape is not None:
+        return DynamicAreaDefinition(area_id=area_id, description=name, proj_dict=proj_dict, x_size=x_size,
+                                     y_size=y_size, area_extent=area_extent, rotation=kwargs.get('rotation', None),
+                                     optimize_projection=kwargs.pop('optimize_projection', False))
+    raise ValueError('Not enough information provided to create an area definition')
+
+
+def _get_proj_data(proj4):
+    from pyproj import Proj
     if isinstance(proj4, str):
         proj_dict = proj4_str_to_dict(proj4)
     elif isinstance(proj4, dict):
         proj_dict = proj4
     else:
-        raise ValueError(
-            '"proj4" must be a proj4 dict or a proj4 string. Type entered: {}'.format(proj4.__class__))
-    p = Proj(proj_dict)
+        raise ValueError('"proj4" must be a proj4 dict or a proj4 string. Type entered: {}'.format(proj4.__class__))
+    return proj_dict, Proj(proj_dict)
 
-    if units is None:
-        units = proj_dict.get('units', 'meters')
 
-    # Make sure list-like objects are list-like, have the right shape, and are numbers.
-    center, radius, top_left_extent, area_extent, pixel_size, shape = [_verify_list(name, var, length) for
-                                                                       name, var, length
-                                                                       in zip(*[['center', 'radius',
-                                                                                 'top_left_extent', 'area_extent',
-                                                                                 'pixel_size', 'shape'],
-                                                                                [center, radius, top_left_extent,
-                                                                                 area_extent, pixel_size, shape],
-                                                                                [2, 2, 2, 4, 2, 2]])]
-    if isinstance(shape, DataArray):
-        shape = shape.data.tolist()
-
-    # Split area_extent into its two xy lists to handle like other data.
+# Splits area_extent into two lists so that its units can be converted, and then recombines the two lists.
+def _split_area_extent(area_extent):
     if area_extent is None:
         area_extent_ll = None
         area_extent_ur = None
@@ -617,41 +651,19 @@ def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area
     else:
         area_extent_ll = area_extent[:2]
         area_extent_ur = area_extent[2:]
+    return area_extent_ll, area_extent_ur
 
-    # Converts from lat/lon to projection coordinates (x,y) if not in projection coordinates. Returns tuples.
-    center, radius, top_left_extent, pixel_size, area_extent_ll, area_extent_ur = [_convert_units(var, units, p)
-                                                                                   for var in
-                                                                                   [center, radius, top_left_extent,
-                                                                                    pixel_size, area_extent_ll,
-                                                                                    area_extent_ur]]
-    # Combine area_extent's two xy lists back together.
+
+def _get_units(center, radius, top_left_extent, pixel_size, area_extent, units, p):
+    area_extent_ll, area_extent_ur = _split_area_extent(area_extent)
+    center, radius, top_left_extent, pixel_size, area_extent_ll, area_extent_ur =\
+        [_convert_units(var, name, units, p) for var, name in zip(*[[center, radius, top_left_extent, pixel_size,
+                                                                     area_extent_ll, area_extent_ur],
+                                                                    ['center', 'radius', 'top_left_extent',
+                                                                     'pixel_size', 'area_extent', 'area_extent']])]
     if area_extent is not None:
         area_extent = area_extent_ll + area_extent_ur
-
-    # Fills in missing information to attempt to create an area definition.
-    if None in (area_extent, shape):
-        area_extent, shape = _extrapolate_information(area_extent, shape, center, radius, pixel_size,
-                                                          top_left_extent)
-
-    # Used for area definition to prevent indexing None.
-    x_size = None
-    y_size = None
-    if shape is not None:
-        x_size = int(round(shape[1]))
-        y_size = int(round(shape[0]))
-        # Make sure shape is an integer.
-        if not np.allclose(round(x_size), x_size) or not np.allclose(round(y_size), y_size):
-            raise ValueError('Shape found or provided must be an integer: {0}'.format(shape))
-
-    # If enough data is provided, create an area_definition. If only shape or area_extent are found, make a
-    # DynamicAreaDefinition. If not enough information was provided, raise an error.
-    if None not in (area_extent, shape):
-        return AreaDefinition(area_id, name, proj_id, proj_dict, x_size, y_size, area_extent, **kwargs)
-    elif area_extent is not None or shape is not None:
-        return DynamicAreaDefinition(area_id=area_id, description=name, proj_dict=proj_dict, x_size=x_size,
-                                     y_size=y_size, area_extent=area_extent, rotation=kwargs.get('rotation', None),
-                                     optimize_projection=kwargs.pop('optimize_projection', False))
-    raise ValueError('Not enough information provided to create an area definition')
+    return center, radius, top_left_extent, pixel_size, area_extent
 
 
 def _validate_variable(var, new_var, var_name, input_list):
@@ -663,19 +675,19 @@ def _validate_variable(var, new_var, var_name, input_list):
     return new_var
 
 
-def _convert_units(var, units, p, inverse=False):
+def _convert_units(var, name, units, p, inverse=False):
     """Converts units from lon/lat to projection coordinates. The inverse does the opposite."""
     if var is None:
         return None
     if hasattr(var, 'units'):
         units = var.units
     if p.is_latlong() and 'm' in units:
-        raise ValueError('latlon/latlong projection cannot take meters as units')
+        raise ValueError('latlon/latlong projection cannot take meters as units: {0}'.format(name))
     if isinstance(var, DataArray):
         var = tuple(var.data.tolist())
-
     if not (units and ('deg' in units or 'rad' in units or 'm' in units)):
-        raise ValueError('Units must be in degrees, radians, or meters. Given units were: {}'.format(units))
+        raise ValueError("{0}'s units must be in degrees, radians, or meters. Given units were: {1}".format(name,
+                                                                                                            units))
     # Return either degrees or meters depending on if the inverse is true or not.
     # Don't convert if inverse is True: Already in degrees/radians.
     if ('deg' in units or 'rad' in units) and not inverse:
@@ -739,14 +751,13 @@ def _verify_list(name, var, length):
     """ Checks that every piece of data that should be list-like (converts lists/tuples to xarrays) is list-like,
         makes sure shapes are accurate, and checks to make sure the values are numbers."""
     # Make list-like data into tuples (or leave as xarrays). If not list-like, throw a ValueError unless it is None.
-
     if var is None:
         return None
     # Verify that list is made of numbers and list-like.
     try:
-        if hasattr(var, 'units'):
+        if hasattr(var, 'units') and name != 'shape':
             var = DataArray([float(num) for num in var.data.tolist()], attrs=var.attrs)
-        elif isinstance(var, DataArray):
+        elif isinstance(var, DataArray) and name != 'shape':
             var = tuple(float(num) for num in var.data.tolist())
         else:
             var = tuple(float(num) for num in var)
