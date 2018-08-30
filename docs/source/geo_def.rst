@@ -106,13 +106,70 @@ content
      lon_0: 0
      proj: laea
      lat_0: -90
+
    shape:
      height: 425
      width: 425
+   shape: 425/[425, 425]
+   shape:
+     size: 425/[425, 425]
+
    area_extent:
      lower_left_xy: [-5326849.0625, -5326849.0625]
      upper_right_xy: [5326849.0625, 5326849.0625]
-     units: m
+   area_extent:
+     lower_left_xy: -5326849.0625
+     upper_right_xy: 5326849.0625
+     units: m/deg/rad
+   area_extent: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
+   area_extent:
+     size: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
+   area_extent:
+     size: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
+     units: m/deg/rad
+
+   top_left_extent:
+     x: -5326849.0625
+     y: 5326849.0625
+   top_left_extent:
+     x: -5326849.0625
+     y: 5326849.0625
+     units: m/deg/rad
+   top_left_extent: [-5326849.0625, 5326849.0625]
+   top_left_extent:
+     size: 5326849.0625/[-5326849.0625, 5326849.0625]
+   top_left_extent:
+     size: 5326849.0625/[-5326849.0625, 5326849.0625]
+     units: m/deg/rad
+
+   center:
+     x: 0
+     y: 0
+   center:
+     x: 0
+     y: 0
+    units: m/deg/rad
+   center: [0, 0]
+   center:
+     size: 0/[0, 0]
+   center:
+     size: 0/[0, 0]
+     units: m/deg/rad
+
+   pixel_size:
+     x: 12533.7625
+     y: 25067.525
+   pixel_size:
+     x: 12533.7625
+     y: 25067.525
+     units: m/deg/rad
+   pixel_size: [12533.7625, 25067.525]
+   pixel_size:
+     size: [12533.7625, 25067.525]
+   pixel_size:
+     size: [12533.7625, 25067.525]
+     units: m/deg/rad
+
  ease_nh:
    description: Arctic EASE grid
    projection:
