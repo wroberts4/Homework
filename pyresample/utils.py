@@ -136,6 +136,7 @@ def _parse_yaml_area_file(area_file_name, *regions):
                 area_name, area_file_name))
         description = params.pop('description', None)
         projection = params.pop('projection', None)
+        params['area_id'] = params.get('area_id', area_name)
         params['shape'] = _get_list(params, 'shape', ['height', 'width', 'size'])
         params['top_left_extent'] = _get_list(params, 'top_left_extent', ['x', 'y', 'size'])
         params['center'] = _get_list(params, 'center', ['x', 'y', 'size'])
@@ -272,7 +273,7 @@ def _create_area(area_id, area_content):
 
     config['PCS_DEF'] = _get_proj4_args(config['PCS_DEF'])
     return from_params(config['NAME'], config['PCS_DEF'], area_id=config['REGION'],
-                                      proj_id=config['PCS_ID'], shape=[config['YSIZE'], config['XSIZE']],
+                                      proj_id=config['PCS_ID'], shape=(config['YSIZE'], config['XSIZE']),
                                       area_extent=config['AREA_EXTENT'], rotation=config['ROTATION'])
 
 
@@ -574,11 +575,11 @@ def recursive_dict_update(d, u):
 def from_params(name, proj4, shape=None, top_left_extent=None, center=None, area_extent=None, pixel_size=None,
                 radius=None, units=None, **kwargs):
     """Takes data the user knows and tries to make an area definition from what can be found."""
-    area_id, proj_id = kwargs.pop('area_id', name), kwargs.pop('proj_id', name)
+    area_id, proj_id = kwargs.pop('area_id', name), kwargs.pop('proj_id', None)
 
     for key, value in {'name': name, 'area_id': area_id, 'proj_id': proj_id}.items():
-        if not isinstance(value, str):
-            raise ValueError('{0} must be a string but is: {1}'.format(key, value))
+        if not isinstance(value, str) and (value is not None or key != 'proj_id'):
+            raise ValueError('{0} must be a string. Type entered: {1}'.format(key, type(value)))
 
     # Get a proj4_dict from either a proj4_dict or a proj4_string.
     proj_dict, p = _get_proj_data(proj4)
@@ -636,7 +637,7 @@ def _get_proj_data(proj4):
     elif isinstance(proj4, dict):
         proj_dict = proj4
     else:
-        raise ValueError('"proj4" must be a proj4 dict or a proj4 string. Type entered: {}'.format(proj4.__class__))
+        raise ValueError('"proj4" must be a proj4 dict or a proj4 string. Type entered: {0}'.format(proj4.__class__))
     return proj_dict, Proj(proj_dict)
 
 

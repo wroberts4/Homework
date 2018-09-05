@@ -68,7 +68,7 @@ pyresample.utils
 # list of proj4 arguments?
 The utils module of pyresample has convenience functions for constructing
 area defintions. The function **get_area_def** can construct an area definition
-based on area extent and a proj4-string or a list of proj4 arguments.
+based on area extent and a proj4-string/dict or a list of proj4 arguments.
 
 .. doctest::
 
@@ -91,15 +91,40 @@ based on area extent and a proj4-string or a list of proj4 arguments.
  Number of rows: 425
  Area extent: (-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625)
 
-# Update format.
+The following arguments can be put in a yamle or passed to the function **get_params** in
+order to make an area definition. Note: Not all of the arguments are needed; the functions
+will attempt to figure out the information required (area_extent, x_size, and y_size) to make
+an area definition from the information you provide.
+
+required:
+* **description**: Description
+* **projection**: Proj4 parameters as a dict or string
+optional:
+* **area_id**: ID of area
+* **proj_id**: ID of projection (being deprecated)
+* **units**: Default projection units (meters/radians/degrees). If units are not specified,
+they will default to the proj4's units and then to meters if they are still not provided.
+* **shape**: (y_size, x_size). Note: if x_size = y_size, then only x_size or y_size needs to be passed
+* **area_extent**: (x_ll, y_ll, x_ur, y_ur). lower_left_xy and upper_right_xy can be specified as (x_ll, y_ll) and
+(x_ur, y_ur) respectively. Note: if x_ll = y_ll or x_ur = y_ur, then only x_ll/y_ll or x_ur/y_ur needs to be
+passed respectively.
+* **top_left_extent**: (x_ul, y_ul). Note: if x_ul = y_ul, then only x_ul or y_ul needs to be passed
+* **center**: (center_x, center_y). Note: if center_x = center_y, then only center_x or center_y needs to be passed
+* **pixel_size**: size of each pixel in projection units
+* **radius**: length from center of projection to edge of projection in projection units
+
 The **load_area** function can be used to parse area definitions from a
 configuration file. Assuming the file **areas.yaml** exists with the following
-content
+content.
 
 .. code-block:: yaml
 
  ease_sh:
    description: Antarctic EASE grid
+   area_id: ease_sh
+   proj_id: ease_sh
+   units: meters
+
    projection:
      a: 6371228.0
      units: m
@@ -115,43 +140,28 @@ content
      size: 425/[425, 425]
 
    area_extent:
-     lower_left_xy: [-5326849.0625, -5326849.0625]
-     upper_right_xy: [5326849.0625, 5326849.0625]
-   area_extent:
      lower_left_xy: -5326849.0625
      upper_right_xy: 5326849.0625
      units: m/deg/rad
    area_extent: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
    area_extent:
      size: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
-   area_extent:
-     size: [-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625]
      units: m/deg/rad
 
    top_left_extent:
      x: -5326849.0625
      y: 5326849.0625
-   top_left_extent:
-     x: -5326849.0625
-     y: 5326849.0625
      units: m/deg/rad
-   top_left_extent: [-5326849.0625, 5326849.0625]
-   top_left_extent:
-     size: 5326849.0625/[-5326849.0625, 5326849.0625]
+   top_left_extent: 5326849.0625/[-5326849.0625, 5326849.0625]
    top_left_extent:
      size: 5326849.0625/[-5326849.0625, 5326849.0625]
      units: m/deg/rad
 
-   center:
-     x: 0
-     y: 0
    center:
      x: 0
      y: 0
     units: m/deg/rad
-   center: [0, 0]
-   center:
-     size: 0/[0, 0]
+   center: 0/[0, 0]
    center:
      size: 0/[0, 0]
      units: m/deg/rad
@@ -159,15 +169,19 @@ content
    pixel_size:
      x: 12533.7625
      y: 25067.525
-   pixel_size:
-     x: 12533.7625
-     y: 25067.525
      units: m/deg/rad
-   pixel_size: [12533.7625, 25067.525]
+   pixel_size: 25067.525/[12533.7625, 25067.525]
    pixel_size:
-     size: [12533.7625, 25067.525]
-   pixel_size:
-     size: [12533.7625, 25067.525]
+     size: 25067.525/[12533.7625, 25067.525]
+     units: m/deg/rad
+
+   radius:
+     x: 5326849.0625
+     y: 5326849.0625
+     units: m/deg/rad
+   radius: 5326849.0625/[5326849.0625, 5326849.0625]
+   radius:
+     size: 5326849.0625/[5326849.0625, 5326849.0625]
      units: m/deg/rad
 
  ease_nh:

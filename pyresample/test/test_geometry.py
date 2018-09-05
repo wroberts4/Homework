@@ -1301,7 +1301,7 @@ class TestStackedAreaDefinition(unittest.TestCase):
         # reducing the length of AreaDefinition.from_params makes lines much shorter.
         area = utils.from_params
 
-        # Tests: that incorrect lists do not create an area definition, that both proj4 strings and dicts are accepted,
+        # Tests that incorrect lists do not create an area definition, that both proj4 strings and dicts are accepted,
         # and that degrees, meters, and radians all create the same area definition.
         # area_list used to check that areas are all correct at the end.
         area_list = []
@@ -1360,7 +1360,7 @@ class TestStackedAreaDefinition(unittest.TestCase):
         for area_def in area_list:
             verify_area(area_def)
 
-        # Makes sure if shape or area_extentis found/given, a DynamicAreaDefinition is made.
+        # Makes sure if shape or area_extent is found/given, a DynamicAreaDefinition is made.
         self.assertTrue(isinstance(area(name, proj4_list[1], shape=shape), DynamicAreaDefinition))
         self.assertTrue(isinstance(area(name, proj4_list[1], area_extent=area_extent), DynamicAreaDefinition))
 
